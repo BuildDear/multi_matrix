@@ -69,10 +69,11 @@ def process_in_parallel(submatrices, power=20):
     # Create a pool of worker processes. The number of processes is set to the number of CPU cores available.
     # This helps in efficiently utilizing the available hardware resources.
     with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        # Use the pool's starmap method to apply the 'raise_elements_to_power' function to each submatrix in parallel.
-        # 'starmap' is similar to the built-in map function but allows multiple arguments to be passed to the function being applied.
-        # Here, each element in the iterable passed to starmap is a tuple containing a submatrix and the power.
-        # The 'raise_elements_to_power' function is then called with these arguments for each submatrix.
+        # Use the pool's starmap method to apply the 'raise_elements_to_power' function to each submatrix in
+        # parallel. 'starmap' is similar to the built-in map function but allows multiple arguments to be passed to
+        # the function being applied. Here, each element in the iterable passed to starmap is a tuple containing a
+        # submatrix and the power. The 'raise_elements_to_power' function is then called with these arguments for
+        # each submatrix.
         results = pool.starmap(raise_elements_to_power, [(submatrix, power) for submatrix in submatrices])
 
     # Calculate the total processing time by subtracting the start time from the current time.
@@ -118,19 +119,21 @@ def process_in_threads(submatrices, power=20):
     return results, processing_time
 
 
+def process_half(half, power=20):
+    """Processes a half of the matrix."""
+    processed_half = [raise_elements_to_power(row, power) for row in half]
+    return processed_half
+
+
 def process_in_two_threads(matrix, power=20):
     """Processes the two halves of the matrix in parallel using two threads."""
     start_time = time.time()
 
     upper_half, lower_half = split_matrix_in_two(matrix)
 
-    # Function to process a matrix half
-    def process_half(half):
-        return [raise_elements_to_power(row, power) for row in half]
-
     # Create two threads for the two halves
-    thread1 = threading.Thread(target=process_half, args=(upper_half,))
-    thread2 = threading.Thread(target=process_half, args=(lower_half,))
+    thread1 = threading.Thread(target=raise_elements_to_power, args=(upper_half,))
+    thread2 = threading.Thread(target=raise_elements_to_power, args=(lower_half,))
 
     # Start the threads
     thread1.start()
@@ -142,7 +145,7 @@ def process_in_two_threads(matrix, power=20):
 
     end_time = time.time()
     print(f"Execution time with two threads: {end_time - start_time:.4f} seconds")
-    
+
 
 def process_in_two_processes(matrix, power=20):
     """Processes the two halves of the matrix in parallel using two processes."""
@@ -150,18 +153,20 @@ def process_in_two_processes(matrix, power=20):
 
     upper_half, lower_half = split_matrix_in_two(matrix)
 
-    # Function to process a matrix half in a separate process
-    def process_half(half):
-        return [raise_elements_to_power(row, power) for row in half]
+    # Create two processes using the top-level process_half function
+    process1 = multiprocessing.Process(target=raise_elements_to_power, args=(upper_half, power))
+    process2 = multiprocessing.Process(target=raise_elements_to_power, args=(lower_half, power))
 
-    # Create a pool with two processes
-    with multiprocessing.Pool(2) as pool:
-        # Process each half in parallel
-        pool.map(process_half, [upper_half, lower_half])
+    # Start the processes
+    process1.start()
+    process2.start()
+
+    # Wait for both processes to finish
+    process1.join()
+    process2.join()
 
     end_time = time.time()
     print(f"Execution time with two processes: {end_time - start_time:.4f} seconds")
-
 
 
 def main():
@@ -175,7 +180,7 @@ def main():
     # Max multiprocessing
     multi_process, time_parallel = process_in_parallel(submatrices)
     print(f"Parallel processing time: {time_parallel:.4f} sec")
-    
+
     # Max multithreading
     multi_thread, time_parallel = process_in_threads(submatrices)
     print(f"Parallel threading time: {time_parallel:.4f} sec")
