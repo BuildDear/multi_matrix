@@ -1,4 +1,5 @@
 import multiprocessing
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -9,7 +10,15 @@ def read_matrix_from_file(filename):
         return [list(map(int, line.split())) for line in file]
 
 
-def split_matrix(matrix, submatrix_size=500):
+def split_matrix_in_two(matrix):
+    """Splits the matrix into two halves."""
+    mid_index = len(matrix) // 2
+    upper_half = matrix[:mid_index]
+    lower_half = matrix[mid_index:]
+    return upper_half, lower_half
+
+
+def split_matrix(matrix, submatrix_size=750):
     """Splits a matrix into smaller submatrices."""
     submatrices = []
     for i in range(0, len(matrix), submatrix_size):
@@ -109,18 +118,73 @@ def process_in_threads(submatrices, power=20):
     return results, processing_time
 
 
+def process_in_two_threads(matrix, power=20):
+    """Processes the two halves of the matrix in parallel using two threads."""
+    start_time = time.time()
+
+    upper_half, lower_half = split_matrix_in_two(matrix)
+
+    # Function to process a matrix half
+    def process_half(half):
+        return [raise_elements_to_power(row, power) for row in half]
+
+    # Create two threads for the two halves
+    thread1 = threading.Thread(target=process_half, args=(upper_half,))
+    thread2 = threading.Thread(target=process_half, args=(lower_half,))
+
+    # Start the threads
+    thread1.start()
+    thread2.start()
+
+    # Wait for both threads to complete
+    thread1.join()
+    thread2.join()
+
+    end_time = time.time()
+    print(f"Execution time with two threads: {end_time - start_time:.4f} seconds")
+    
+
+def process_in_two_processes(matrix, power=20):
+    """Processes the two halves of the matrix in parallel using two processes."""
+    start_time = time.time()
+
+    upper_half, lower_half = split_matrix_in_two(matrix)
+
+    # Function to process a matrix half in a separate process
+    def process_half(half):
+        return [raise_elements_to_power(row, power) for row in half]
+
+    # Create a pool with two processes
+    with multiprocessing.Pool(2) as pool:
+        # Process each half in parallel
+        pool.map(process_half, [upper_half, lower_half])
+
+    end_time = time.time()
+    print(f"Execution time with two processes: {end_time - start_time:.4f} seconds")
+
+
+
 def main():
     matrix = read_matrix_from_file('input.txt')
     submatrices = split_matrix(matrix)
 
+    # Single process
     single_process, time_sequential = process_sequentially(submatrices)
     print(f"Sequential processing time: {time_sequential:.4f} sec")
 
+    # Max multiprocessing
     multi_process, time_parallel = process_in_parallel(submatrices)
     print(f"Parallel processing time: {time_parallel:.4f} sec")
-
+    
+    # Max multithreading
     multi_thread, time_parallel = process_in_threads(submatrices)
     print(f"Parallel threading time: {time_parallel:.4f} sec")
+
+    # 2 Threads
+    process_in_two_threads(matrix)
+
+    # 2 Process
+    process_in_two_processes(matrix)
 
 
 if __name__ == '__main__':
